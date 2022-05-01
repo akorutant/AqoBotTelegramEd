@@ -9,7 +9,8 @@ class DataBase:
         self.cur.execute("""CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER,
-            admin_id INTEGER)""")
+            admin_id INTEGER,
+            chat_name TEXT)""")
 
         self.cur.execute("""CREATE TABLE IF NOT EXISTS bad_words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,25 +24,27 @@ class DataBase:
 
         self.cur.execute("""CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            chat_id INTEGER)""")
+            chat_id INTEGER,
+            user_id INTEGER
+            )""")
 
         self.cur.execute("""CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             chat_id INTEGER,
+            chat_name TEXT,
             task TEXT,
             admin_id INTEGER)""")
 
         self.con.commit()
 
-    def add_task(self, user_id, task, admin_id, chat_id):
-        self.cur.execute("INSERT INTO tasks (user_id, chat_id, task, admin_id) VALUES (?, ?, ?, ?)",
-                         (user_id, chat_id, task, admin_id))
+    def add_task(self, user_id, chat_id, chat_name, task, admin_id):
+        self.cur.execute("INSERT INTO tasks (user_id, chat_id, chat_name, task, admin_id) VALUES (?, ?, ?, ?, ?)",
+                         (user_id, chat_id, chat_name, task, admin_id))
         self.con.commit()
 
     def get_tasks(self, user_id, chat_id):
-        self.cur.execute(f"SELECT * FROM tasks WHERE user_id = ? AND chat_id = ?",
+        self.cur.execute(f"SELECT id, task FROM tasks WHERE user_id = ? AND chat_id = ?",
                          (user_id, chat_id))
         return self.cur.fetchall()
 
@@ -50,8 +53,7 @@ class DataBase:
         return len(q) >= 5
 
     def add_user(self, chat_id, user_id):
-        self.cur.execute('SELECT user_id FROM users WHERE chat_id = ? AND user_id = ?',
-                         (chat_id, user_id))
+        self.cur.execute('SELECT user_id FROM users WHERE chat_id = ? AND user_id = ?', (chat_id, user_id))
         user = self.cur.fetchone()
         if not user:
             self.cur.execute('INSERT INTO users (chat_id, user_id) VALUES (?, ?)',
@@ -105,9 +107,16 @@ class DataBase:
         words = self.cur.fetchall()
         return [word[0] for word in words]
 
-    def add_admins(self, chat_id, admin_id):
-        self.cur.execute('SELECT * FROM chat_ids WHERE admin_id = ?', (admin_id,))
-        admin = self.cur.fetchall()
+    def add_admins(self, chat_id, admin_id, chat_name):
+        self.cur.execute('SELECT admin_id FROM admins WHERE chat_id = ? AND admin_id = ?',
+                         (chat_id, admin_id))
+
+        admin = self.cur.fetchone()
         if not admin:
-            self.cur.execute('INSERT INTO chat_ids VALUES (?, ?)', (chat_id, admin_id))
+            self.cur.execute('INSERT INTO admins (chat_id, admin_id, chat_name) VALUES (?, ?, ?)',
+                             (chat_id, admin_id, chat_name))
             self.con.commit()
+
+
+# db = DataBase('work.sqlite')
+# print(db.get_tasks(842294104, -1001585796606)
