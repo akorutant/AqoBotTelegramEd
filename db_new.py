@@ -47,6 +47,7 @@ class DataBase:
     def get_tasks(self, user_id, chat_id):
         self.cur.execute(f"SELECT id, task FROM tasks WHERE user_id = ? AND chat_id = ?",
                          (user_id, chat_id))
+
         return self.cur.fetchall()
 
     def check_tasks(self, user_id, chat_id):
@@ -131,7 +132,8 @@ class DataBase:
     def get_chat_id_by_user_id(self, user_id):
         self.cur.execute('SELECT chat_id FROM users WHERE user_id = ?', (user_id,))
         chat = self.cur.fetchone()
-        return chat
+        if chat:
+            return chat
 
     def get_chat_titles_by_admin_id(self, admin_id):
         self.cur.execute('SELECT chat_title FROM admins WHERE admin_id = ?', (admin_id,))
@@ -152,5 +154,7 @@ class DataBase:
             self.cur.execute('INSERT INTO chats (chat_id, chat_title) VALUES (?, ?)',
                              (chat_id, chat_title))
             self.con.commit()
+
+
 # db = DataBase('work.sqlite')
 # print(db.get_admin_info(905101949)[0][1])

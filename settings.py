@@ -12,6 +12,7 @@ db = DataBase('work.sqlite')
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
+admin_chat_dict = {}
 
 # Кнопки.
 show_task = KeyboardButton('Поручения')
@@ -51,13 +52,15 @@ async def send_tasks(message):
 
     elif message.chat.id == message.from_user.id:
         text = ""
-        chat = db.get_chat_id_by_user_id(message.from_user.id)[0]
-        if db.get_tasks(message['from']['id'], chat):
-            for i in range(len(db.get_tasks(message['from']['id'], chat))):
-                text += f"├ {i + 1}. {hbold(db.get_tasks(message['from']['id'], chat)[i][1])}\n"
-            await message.reply(text=f"│ Ваши поручения:\n{text}", parse_mode='HTML')
-        else:
-            await message.reply("У вас нет поручений.")
+        chat = db.get_chat_id_by_user_id(message.from_user.id)
+        if chat:
+            chat = chat[0]
+            if db.get_tasks(message['from']['id'], chat):
+                for i in range(len(db.get_tasks(message['from']['id'], chat))):
+                    text += f"├ {i + 1}. {hbold(db.get_tasks(message['from']['id'], chat)[i][1])}\n"
+                await message.reply(text=f"│ Ваши поручения:\n{text}", parse_mode='HTML')
+            else:
+                await message.reply("У вас нет поручений.")
 
 if __name__ == '__main__':
     executor.start_polling(dp)

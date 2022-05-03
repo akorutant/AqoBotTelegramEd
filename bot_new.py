@@ -230,23 +230,25 @@ async def process_callback_button(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     user = callback_query.from_user.id
     if db.get_admin_id(user):
+        chat_id = settings.admin_chat_dict[callback_query.message.chat.id][0]
+        chat_title = settings.admin_chat_dict[callback_query.message.chat.id][1]
         if callback_query.data == 'button_on':
-            if db.check_filter(chat_id=global_chat_id):
+            if db.check_filter(chat_id=chat_id):
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
                                                            chat_id=user,
                                                            message_id=callback_query.message.message_id,
                                                            reply_markup=settings.button)
-            elif db.get_words_by_chat(chat_id=global_chat_id):
+            elif db.get_words_by_chat(chat_id=chat_id):
                 await state.reset_state(FilterWords.all()[0])
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(text='Фильтрация чата включена.',
                                                            chat_id=user,
                                                            message_id=callback_query.message.message_id,
                                                            reply_markup=settings.button)
-                db.change_filter(chat_id=global_chat_id, chat_title=global_chat_title)
+                db.change_filter(chat_id=chat_id, chat_title=chat_title)
 
-            elif db.check_filter(chat_id=global_chat_id):
+            elif db.check_filter(chat_id=chat_id):
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
                                                            chat_id=user,
@@ -258,23 +260,23 @@ async def process_callback_button(callback_query: types.CallbackQuery):
                 await callback_query.bot.edit_message_text(text='Укажите слово',
                                                            chat_id=user,
                                                            message_id=callback_query.message.message_id)
-                db.change_filter(chat_id=global_chat_id, chat_title=global_chat_title)
+                db.change_filter(chat_id=chat_id, chat_title=chat_title)
         elif callback_query.data == 'button_off':
-            if not db.check_filter(global_chat_id):
+            if not db.check_filter(chat_id):
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(text='Фильтрация чата уже отключена.',
                                                            chat_id=user,
                                                            message_id=callback_query.message.message_id,
                                                            reply_markup=settings.button)
             else:
-                db.change_filter(global_chat_id, chat_title=global_chat_title)
+                db.change_filter(chat_id, chat_title=chat_title)
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(text='Фильтрация чата отключена.',
                                                            chat_id=user,
                                                            message_id=callback_query.message.message_id,
                                                            reply_markup=settings.button)
         elif callback_query.data == 'button_filter':
-            if db.check_filter(chat_id=global_chat_id):
+            if db.check_filter(chat_id=chat_id):
                 await bot.answer_callback_query(callback_query.id)
                 await callback_query.bot.edit_message_text(
                     text='Укажите слово',
@@ -289,49 +291,51 @@ async def process_callback_button(callback_query: types.CallbackQuery):
                     message_id=callback_query.message.message_id,
                     reply_markup=settings.button)
         elif callback_query.data == 'button_delete':
-            if db.check_filter(chat_id=global_chat_id):
-                db.delete_words(chat_id=global_chat_id)
+            if db.check_filter(chat_id=chat_id):
+                db.delete_words(chat_id=chat_id)
                 await bot.answer_callback_query(callback_query.id)
                 await bot.edit_message_text(text='Список слов был очищен.',
                                             chat_id=user,
                                             message_id=callback_query.message.message_id,
                                             reply_markup=settings.button)
-        elif callback_query.data == 'button_un_mute':
-            member = await bot.get_chat_member(callback_query.message.chat.id, callback_query.from_user.id)
-            if member.is_chat_admin():
-                await bot.restrict_chat_member(chat_id=callback_query.message.chat.id,
-                                               user_id=global_mute_user,
-                                               can_send_messages=True,
-                                               can_send_media_messages=True,
-                                               can_send_other_messages=True,
-                                               can_add_web_page_previews=True)
-
-                await bot.answer_callback_query(callback_query_id=callback_query.id,
-                                                text='Пользователь был размучен.',
-                                                show_alert=False)
-            else:
-                await bot.answer_callback_query(callback_query_id=callback_query.id,
-                                                text='У вас нет прав для размута.',
-                                                show_alert=False)
+        # elif callback_query.data == 'button_un_mute':
+        #     member = await bot.get_chat_member(callback_query.message.chat.id, callback_query.from_user.id)
+        #     if member.is_chat_admin():
+        #         await bot.restrict_chat_member(chat_id=callback_query.message.chat.id,
+        #                                        user_id=,
+        #                                        can_send_messages=True,
+        #                                        can_send_media_messages=True,
+        #                                        can_send_other_messages=True,
+        #                                        can_add_web_page_previews=True)
+        #
+        #         await bot.answer_callback_query(callback_query_id=callback_query.id,
+        #                                         text='Пользователь был размучен.',
+        #                                         show_alert=False)
+        #     else:
+        #         await bot.answer_callback_query(callback_query_id=callback_query.id,
+        #                                         text='У вас нет прав для размута.',
+        #                                         show_alert=False)
 
 
 @dp.message_handler(state=FilterWords.STATEWORD)
 async def bad_words(message: types.Message):
     argument = message.text
     user = message.from_user.id
+    chat_id = settings.admin_chat_dict[message.from_user.id][0]
+    chat_title = settings.admin_chat_dict[message.from_user.id][1]
     if db.get_admin_id(user):
         if '/' in argument:
             await message.reply('Нельзя добавить команду в список.')
         else:
             state = dp.current_state(user=message.from_user.id)
-            if db.add_words(chat_id=global_chat_id, word=argument.lower()):
+            if db.add_words(chat_id=chat_id, word=argument.lower()):
                 await message.reply('Это слово уже есть в списке, укажите другое.')
             else:
-                db.add_words(chat_id=global_chat_id, word=argument.lower())
+                db.add_words(chat_id=chat_id, word=argument.lower())
                 await message.answer('Фильтрация чата включена и слово добавлено в список запрещенных.',
                                      reply_markup=settings.button)
                 await state.reset_state(FilterWords.all()[0])
-                db.change_filter(chat_id=global_chat_id, chat_title=global_chat_title)
+                db.change_filter(chat_id=chat_id, chat_title=chat_title)
 
 
 @dp.message_handler(state=FilterWords.UPDATESTATEWORD)
@@ -340,14 +344,15 @@ async def bad_words_update(message: types.Message):
     user = message.from_user.id
     if db.get_admin_id(user):
         admin_id = db.get_admin_id(user)[0]
+        chat_id = settings.admin_chat_dict[message.from_user.id][0]
         if '/' in argument:
             await message.reply('Нельзя добавить команду в список.')
         else:
             state = dp.current_state(user=admin_id)
-            if db.add_words(chat_id=global_chat_id, word=argument.lower()):
+            if db.add_words(chat_id=chat_id, word=argument.lower()):
                 await message.reply('Это слово уже есть в списке, укажите другое.')
             else:
-                db.add_words(chat_id=global_chat_id, word=argument.lower())
+                db.add_words(chat_id=chat_id, word=argument.lower())
                 await message.answer('Слово добавлено в список запрещенных.',
                                      reply_markup=settings.button)
                 await state.reset_state(FilterWords.all()[1])
@@ -361,9 +366,6 @@ async def keyboard_buttons(message: types.Message):
 
 @dp.message_handler()
 async def catch_messages(message: types.Message):
-    global global_chat_id
-    global global_chat_title
-    global global_mute_user
     member = await bot.get_chat_member(message.chat.id, message.from_user.id)
     if message.chat.id != message.from_user.id:
         if message.chat.type == 'supergroup':
@@ -381,7 +383,7 @@ async def catch_messages(message: types.Message):
                     db.add_admins(message.chat.id, admin['user']['id'], message.chat.title)
             if not member.is_chat_admin():
                 db.add_user(message.chat.id, message.from_user.id)
-                if message.chat.type != 'group':
+                if message.chat.type == 'supergroup':
                     if db.check_filter(message.chat.id):
                         for i in db.get_words_by_chat(message.chat.id):
                             if i in message['text'].lower():
@@ -406,8 +408,7 @@ async def catch_messages(message: types.Message):
         if db.get_chat_titles_by_admin_id(message.chat.id):
             for chat_title in db.get_chat_titles_by_admin_id(message.chat.id):
                 if message.text == chat_title:
-                    global_chat_id = db.get_chat_id_by_chat_title(chat_title)[0]
-                    global_chat_title = chat_title
+                    settings.admin_chat_dict[message.from_user.id] = (db.get_chat_id_by_chat_title(chat_title)[0], chat_title)
                     await bot.send_message(text=f'Выберите действие для чата {chat_title}',
                                            reply_markup=settings.button,
                                            chat_id=message.chat.id)
