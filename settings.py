@@ -13,6 +13,7 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
 admin_chat_dict = {}
+muted_user = {}
 
 # Кнопки.
 show_task = KeyboardButton('Поручения')
@@ -22,6 +23,7 @@ keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(show_task, weather)
 
 # Инлайн-кнопки.
 button = InlineKeyboardMarkup(row_width=2)
+buttons_delete_tasks = InlineKeyboardMarkup(row_width=2)
 button_on = InlineKeyboardButton(text='Включить', callback_data='button_on')
 button_off = InlineKeyboardButton(text='Отключить', callback_data='button_off')
 button_filter = InlineKeyboardButton(text='Дополнить список', callback_data='button_filter')
@@ -57,6 +59,8 @@ async def send_tasks(message):
             chat = chat[0]
             if db.get_tasks(message['from']['id'], chat):
                 for i in range(len(db.get_tasks(message['from']['id'], chat))):
+                    button_ = text=db.get_tasks(message['from']['id'], chat)[i][1], callback_data=f'{i + 1}'
+                    buttons_delete_tasks.add(button_)
                     text += f"├ {i + 1}. {hbold(db.get_tasks(message['from']['id'], chat)[i][1])}\n"
                 await message.reply(text=f"│ Ваши поручения:\n{text}", parse_mode='HTML')
             else:
