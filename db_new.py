@@ -40,7 +40,8 @@ class DataBase:
         self.con.commit()
 
     def add_task(self, user_id, chat_id, chat_title, task, admin_id):
-        self.cur.execute("INSERT INTO tasks (user_id, chat_id, chat_title, task, admin_id) VALUES (?, ?, ?, ?, ?)",
+        self.cur.execute("INSERT INTO tasks (user_id, chat_id, chat_title, task, admin_id) "
+                         "VALUES (?, ?, ?, ?, ?)",
                          (user_id, chat_id, chat_title, task, admin_id))
         self.con.commit()
 
@@ -55,7 +56,8 @@ class DataBase:
         return len(q) >= 5
 
     def add_user(self, chat_id, user_id):
-        self.cur.execute('SELECT user_id FROM users WHERE chat_id = ? AND user_id = ?', (chat_id, user_id))
+        self.cur.execute('SELECT user_id FROM users WHERE chat_id = ? AND user_id = ?',
+                         (chat_id, user_id))
         user = self.cur.fetchone()
         if not user:
             self.cur.execute('INSERT INTO users (chat_id, user_id) VALUES (?, ?)',
@@ -67,8 +69,8 @@ class DataBase:
         users = self.cur.fetchall()
         return [user[0] for user in users]
 
-    def task_delete(self, id):
-        self.cur.execute(f"DELETE FROM tasks WHERE id = ?", (id,))
+    def task_delete(self, task_id):
+        self.cur.execute(f"DELETE FROM tasks WHERE id = ?", (task_id,))
         self.con.commit()
 
     def change_filter(self, chat_id, chat_title):
@@ -76,12 +78,13 @@ class DataBase:
         chat = self.cur.fetchone()
         if chat:
             status = 1 if not chat[0] else 0
-            self.cur.execute(f'UPDATE chats SET filter_state = ? WHERE chat_id = ? AND chat_title = ?',
-                             (status, chat_id, chat_title))
+            self.cur.execute(f'UPDATE chats SET filter_state = ? WHERE chat_id = ? '
+                             f'AND chat_title = ?', (status, chat_id, chat_title))
             self.con.commit()
             return status
         else:
-            self.cur.execute('INSERT INTO chats (chat_id, chat_title) VALUES (?, ?)', (chat_id, chat_title))
+            self.cur.execute('INSERT INTO chats (chat_id, chat_title) VALUES (?, ?)',
+                             (chat_id, chat_title))
             self.con.commit()
 
     def check_filter(self, chat_id):
@@ -103,7 +106,7 @@ class DataBase:
     def delete_words(self, chat_id):
         self.cur.execute('SELECT * FROM bad_words WHERE chat_id = ?', (chat_id,))
         words = self.cur.fetchall()
-        for _ in words:
+        if words:
             self.cur.execute(f"DELETE FROM bad_words WHERE chat_id = ?", (chat_id,))
             self.con.commit()
 
@@ -154,7 +157,3 @@ class DataBase:
             self.cur.execute('INSERT INTO chats (chat_id, chat_title) VALUES (?, ?)',
                              (chat_id, chat_title))
             self.con.commit()
-
-
-# db = DataBase('work.sqlite')
-# print(db.get_admin_info(905101949)[0][1])

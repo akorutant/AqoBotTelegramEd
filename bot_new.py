@@ -2,9 +2,7 @@ from db_new import DataBase
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton
-from aiogram.utils.markdown import hlink, italic, bold, hbold, hitalic
+from aiogram.utils.markdown import hlink, hbold
 from aiogram.utils.helper import Helper, HelperMode, ListItem
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -16,10 +14,6 @@ bot = Bot(token=settings.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 db = DataBase('work.sqlite')
-
-callback_data_for_tasks = {1: 'delete_task_one',
-                           2: 'delete_task_two',
-                           3: 'delete_task_three'}
 
 
 class FilterWords(Helper):
@@ -36,7 +30,7 @@ async def process_start_command(message: types.Message):
             if message.chat.type == 'supergroup':
                 db.add_chat_info(message.chat.id, message.chat.title)
                 await message.reply(
-                    "Привет! Я AqoBot!\n Для корректной работы мне нужны права администратора.")
+                    "Привет! Я AqoBot!\nДля корректной работы мне нужны права администратора.")
             else:
                 await message.reply("Привет! Я AqoBot!\nВаш чат не является супергруппой, "
                                     "я не смогу корректно работать.\n\n"
@@ -45,7 +39,9 @@ async def process_start_command(message: types.Message):
 
     else:
         if message.chat.id == message.from_user.id:
-            await message.reply(text='Клавиаутра включена.', reply_markup=settings.keyboard)
+            await message.reply(text='Привет! Я AqoBot!\nДобавь меня в чат '
+                                     'и начни со мной работать!',
+                                reply_markup=settings.keyboard)
 
 
 @dp.message_handler(commands=['ban'])
@@ -216,12 +212,11 @@ async def filter_chat(message: types.Message):
     user = message.from_user.id
     if db.get_admin_id(user):
         chat_titles = db.get_chat_titles_by_admin_id(user)
-        keyboard_chat_titles = ReplyKeyboardMarkup(resize_keyboard=True)
         for chat_title in chat_titles:
-            keyboard_chat_titles.add(chat_title)
+            settings.keyboard_chat_titles.add(chat_title)
         state = dp.current_state(user=message.from_user.id)
         await bot.send_message(text="Выберите чат для работы с фильтром.",
-                               reply_markup=keyboard_chat_titles,
+                               reply_markup=settings.keyboard_chat_titles,
                                chat_id=message.from_user.id)
         if message.chat.id != message.from_user.id:
             if message.chat.type == 'group':
@@ -260,78 +255,40 @@ async def process_callback_button_un_mute(callback_query: types.CallbackQuery):
                                         show_alert=False)
 
 
-@dp.callback_query_handler(lambda c: c.data, state='*')
-async def process_callback_button(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data == 'button_on', state='*')
+async def process_callback_button_on(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     user = callback_query.from_user.id
     if db.get_admin_id(user):
         chat_id = settings.admin_chat_dict[callback_query.message.chat.id][0]
         chat_title = settings.admin_chat_dict[callback_query.message.chat.id][1]
-        if callback_query.data == 'button_on':
-            if db.check_filter(chat_id=chat_id):
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id,
-                                                           reply_markup=settings.button)
-            elif db.get_words_by_chat(chat_id=chat_id):
-                await state.reset_state(FilterWords.all()[0])
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Фильтрация чата включена.',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id,
-                                                           reply_markup=settings.button)
-                db.change_filter(chat_id=chat_id, chat_title=chat_title)
+        if db.check_filter(chat_id=chat_id):
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id,
+                                                       reply_markup=settings.button)
+        elif db.get_words_by_chat(chat_id=chat_id):
+            await state.reset_state(FilterWords.all()[0])
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Фильтрация чата включена.',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id,
+                                                       reply_markup=settings.button)
+            db.change_filter(chat_id=chat_id, chat_title=chat_title)
 
-            elif db.check_filter(chat_id=chat_id):
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id,
-                                                           reply_markup=settings.button)
-            else:
-                await state.set_state(FilterWords.all()[0])
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Укажите слово',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id)
-        elif callback_query.data == 'button_off':
-            if not db.check_filter(chat_id):
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Фильтрация чата уже отключена.',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id,
-                                                           reply_markup=settings.button)
-            else:
-                db.change_filter(chat_id, chat_title=chat_title)
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(text='Фильтрация чата отключена.',
-                                                           chat_id=user,
-                                                           message_id=callback_query.message.message_id,
-                                                           reply_markup=settings.button)
-        elif callback_query.data == 'button_filter':
-            if db.check_filter(chat_id=chat_id):
-                await bot.answer_callback_query(callback_query.id)
-                await callback_query.bot.edit_message_text(
-                    text='Укажите слово',
-                    chat_id=user,
-                    message_id=callback_query.message.message_id)
-                await state.set_state(FilterWords.all()[1])
-            else:
-                await callback_query.bot.edit_message_text(
-                    text='Фильтрация в чате отключена. Включите её, чтобы дополнить '
-                         'список слов.',
-                    chat_id=user,
-                    message_id=callback_query.message.message_id,
-                    reply_markup=settings.button)
-        elif callback_query.data == 'button_delete':
-            if db.check_filter(chat_id=chat_id):
-                db.delete_words(chat_id=chat_id)
-                await bot.answer_callback_query(callback_query.id)
-                await bot.edit_message_text(text='Список слов был очищен.',
-                                            chat_id=user,
-                                            message_id=callback_query.message.message_id,
-                                            reply_markup=settings.button)
+        elif db.check_filter(chat_id=chat_id):
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Фильтрация чата уже включена.',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id,
+                                                       reply_markup=settings.button)
+        else:
+            await state.set_state(FilterWords.all()[0])
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Укажите слово',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id)
 
 
 @dp.message_handler(state=FilterWords.STATEWORD)
@@ -356,6 +313,49 @@ async def bad_words(message: types.Message):
                 db.change_filter(chat_id=chat_id, chat_title=chat_title)
 
 
+@dp.callback_query_handler(lambda c: c.data == 'button_off')
+async def process_callback_button_off(callback_query: types.CallbackQuery):
+    user = callback_query.from_user.id
+    if db.get_admin_id(user):
+        chat_id = settings.admin_chat_dict[callback_query.message.chat.id][0]
+        chat_title = settings.admin_chat_dict[callback_query.message.chat.id][1]
+        if not db.check_filter(chat_id):
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Фильтрация чата уже отключена.',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id,
+                                                       reply_markup=settings.button)
+        else:
+            db.change_filter(chat_id, chat_title=chat_title)
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(text='Фильтрация чата отключена.',
+                                                       chat_id=user,
+                                                       message_id=callback_query.message.message_id,
+                                                       reply_markup=settings.button)
+
+
+@dp.callback_query_handler(lambda c: c.data == 'button_update', state='*')
+async def process_callback_button_update(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    user = callback_query.from_user.id
+    if db.get_admin_id(user):
+        chat_id = settings.admin_chat_dict[callback_query.message.chat.id][0]
+        if db.check_filter(chat_id=chat_id):
+            await bot.answer_callback_query(callback_query.id)
+            await callback_query.bot.edit_message_text(
+                text='Укажите слово',
+                chat_id=user,
+                message_id=callback_query.message.message_id)
+            await state.set_state(FilterWords.all()[1])
+        else:
+            await callback_query.bot.edit_message_text(
+                text='Фильтрация в чате отключена. Включите её, чтобы дополнить '
+                     'список слов.',
+                chat_id=user,
+                message_id=callback_query.message.message_id,
+                reply_markup=settings.button)
+
+
 @dp.message_handler(state=FilterWords.UPDATESTATEWORD)
 async def bad_words_update(message: types.Message):
     argument = message.text
@@ -376,10 +376,22 @@ async def bad_words_update(message: types.Message):
                 await state.reset_state(FilterWords.all()[1])
 
 
+@dp.callback_query_handler(lambda c: c.data == 'button_delete')
+async def process_callback_button_filter(callback_query: types.CallbackQuery):
+    user = callback_query.from_user.id
+    if db.get_admin_id(user):
+        chat_id = settings.admin_chat_dict[callback_query.message.chat.id][0]
+        db.delete_words(chat_id=chat_id)
+        await bot.answer_callback_query(callback_query.id)
+        await bot.edit_message_text(text='Список слов был очищен.',
+                                    chat_id=user,
+                                    message_id=callback_query.message.message_id,
+                                    reply_markup=settings.button)
+
+
 @dp.message_handler(commands=['keyboard'])
 async def keyboard_buttons(message: types.Message):
-    if message.chat.id != message.from_user.id:
-        await message.reply(text='Клавиаутра включена.', reply_markup=settings.keyboard)
+    await message.reply(text='Клавиаутра включена.', reply_markup=settings.keyboard)
 
 
 @dp.message_handler()
