@@ -3,12 +3,15 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram.utils.markdown import hlink, hbold
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
+    InlineKeyboardButton
 from aiogram.utils.helper import Helper, HelperMode, ListItem
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from datetime import datetime, timedelta
 import settings
 import random
+import asyncio
 
 bot = Bot(token=settings.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -30,7 +33,8 @@ async def process_start_command(message: types.Message):
             if message.chat.type == 'supergroup':
                 db.add_chat_info(message.chat.id, message.chat.title)
                 await message.reply(
-                    "Привет! Я AqoBot!\nДля корректной работы мне нужны права администратора.")
+                    "Привет! Я AqoBot!\nДля корректной работы мне нужны права администратора.\n\n"
+                    "Если вы старый пользователь чата, напишите /reg для добавления в базу данных.")
             else:
                 await message.reply("Привет! Я AqoBot!\nВаш чат не является супергруппой, "
                                     "я не смогу корректно работать.\n\n"
@@ -88,6 +92,7 @@ async def handler_new_member(message):
     else:
         user_name = f"{message['from']['first_name']} "
         user = hlink(user_name, "tg://user?id=" + str(message['from']['id']))
+        db.add_user(message.chat.id, message['from']['id'])
     await bot.send_message(message.chat.id, "Добро пожаловать в чат, {0}! "
                                             "Перейдите в ЛС с ботом и нажмите старт: "
                                             "@AqoTgBot".format(user), parse_mode="HTML")
@@ -117,7 +122,6 @@ async def get_member(message: types.Message):
                         db.add_task(random_user, chat_id, message.chat.title, arguments, admin_id)
                         user = await bot.get_chat_member(chat_id, random_user)
                         user = user['user']
-
                         if 'last_name' in user:
                             user_name = f"{user['first_name']} {user['last_name']}"
                             user_ping = hlink(user_name, "tg://user?id=" + str(
@@ -200,6 +204,7 @@ async def del_task(message: types.Message):
                 if int(arguments) > len(tasks) + 1:
                     await message.reply("Вы указали неверный номер поручения.")
                     return
+                print(arguments)
                 task = tasks[int(arguments) - 1]
                 db.task_delete(task[0])
                 await message.reply(f"Было удалено поручение: {task[1]}")
@@ -237,7 +242,6 @@ async def process_callback_button_un_mute(callback_query: types.CallbackQuery):
     member = await bot.get_chat_member(callback_query.message.chat.id,
                                        callback_query.from_user.id)
     if member.is_chat_admin():
-        print(settings.muted_user[callback_query.message.chat.id])
         await bot.restrict_chat_member(chat_id=callback_query.message.chat.id,
                                        user_id=settings.muted_user[
                                            callback_query.message.chat.id],
@@ -389,9 +393,56 @@ async def process_callback_button_filter(callback_query: types.CallbackQuery):
                                     reply_markup=settings.button)
 
 
+@dp.callback_query_handler(lambda c: c.data == '1')
+async def process_callback_button_delete_task_one(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    chat_id = db.get_chat_id_by_user_id(user_id)[0]
+    if db.get_user(user_id):
+        if db.get_tasks(user_id, chat_id):
+            task = db.get_tasks(user_id, chat_id)[0]
+            db.task_delete(task[0])
+            text = ""
+            btn_list = []
+            buttons_delete_tasks = InlineKeyboardMarkup(row_width=5)
+            for i in range(
+                    len(db.get_tasks(user_id, chat_id))):
+                text += f"├ {i + 1}. " \
+                        f"{hbold(db.get_tasks(user_id, chat_id)[i][1])}\n"
+            buttons_delete_tasks.row(*btn_list)
+            await bot.answer_callback_query(callback_query.id)
+            await bot.edit_message_text(text=f"│ Ваши поручения:\n{text}\n"
+                                             f"---------------------\n"
+                                             f"Было удалено поручение: {task[1]}\n"
+                                             f"---------------------"
+                                             f"Если вы выполнили поручение, то нажмите на кнопку, "
+                                             f"чтобы удалить.",
+                                        parse_mode='HTML',
+                                        chat_id=chat_id,
+                                        message_id=callback_query.message.message_id,
+                                        reply_markup=buttons_delete_tasks)
+
+
+@dp.callback_query_handler(lambda c: c.data == '1')
+async def process_callback_button_delete_task_one(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    chat_id = db.get_chat_id_by_user_id(user_id)[0]
+    if db.get_user(user_id):
+        if db.get_tasks(user_id, chat_id):
+            task = db.get_tasks(user_id, chat_id)[0]
+            db.task_delete(task[0])
+
+
 @dp.message_handler(commands=['keyboard'])
 async def keyboard_buttons(message: types.Message):
     await message.reply(text='Клавиаутра включена.', reply_markup=settings.keyboard)
+
+
+@dp.message_handler(commands=['reg'])
+async def reg(message: types.Message):
+    db.add_user(message.chat.id, message.from_user.id)
+    mess = await message.reply('Вы добавлены в базу данных.')
+    await asyncio.sleep(5)
+    await mess.delete()
 
 
 @dp.message_handler()

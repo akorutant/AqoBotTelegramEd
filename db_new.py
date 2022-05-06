@@ -157,3 +157,12 @@ class DataBase:
             self.cur.execute('INSERT INTO chats (chat_id, chat_title) VALUES (?, ?)',
                              (chat_id, chat_title))
             self.con.commit()
+
+    def get_user(self, user_id):
+        self.cur.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
+        user = self.cur.fetchone()
+        if user:
+            return user
+
+    def get_admin_id_from_tasks(self):
+        pass
