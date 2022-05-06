@@ -417,12 +417,12 @@ async def process_callback_button_delete_task_one(callback_query: types.Callback
                                              f"Если вы выполнили поручение, то нажмите на кнопку, "
                                              f"чтобы удалить.",
                                         parse_mode='HTML',
-                                        chat_id=chat_id,
+                                        chat_id=user_id,
                                         message_id=callback_query.message.message_id,
                                         reply_markup=buttons_delete_tasks)
 
 
-@dp.callback_query_handler(lambda c: c.data == '1')
+@dp.callback_query_handler(lambda c: c.data == '2')
 async def process_callback_button_delete_task_one(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     chat_id = db.get_chat_id_by_user_id(user_id)[0]
