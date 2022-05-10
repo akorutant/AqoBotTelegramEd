@@ -164,5 +164,36 @@ class DataBase:
         if user:
             return user
 
-    def get_admin_id_from_tasks(self):
-        pass
+    def get_admin_id_from_tasks(self, task):
+        self.cur.execute('SELECT admin_id FROM tasks WHERE task = ?', (task,))
+        admin_id = self.cur.fetchone()
+        if admin_id:
+            return admin_id
+
+    def get_chats_ids_by_user_id(self, user_id):
+        self.cur.execute('SELECT chat_id FROM users WHERE user_id = ?', (user_id,))
+        chats_ids = self.cur.fetchall()
+        if chats_ids:
+            return [chat_id[0] for chat_id in chats_ids]
+
+    def get_chat_titles_by_chat_id(self, chat_id):
+        self.cur.execute('SELECT chat_title FROM chats WHERE chat_id = ?', (chat_id,))
+        chat_titles = self.cur.fetchall()
+        if chat_titles:
+            return [chat_title[0] for chat_title in chat_titles]
+
+    def get_chat_title_by_chat_id(self, chat_id):
+        self.cur.execute('SELECT chat_title FROM chats WHERE chat_id = ?', (chat_id,))
+        chat_title = self.cur.fetchone()
+        if chat_title:
+            return chat_title
+
+
+# db = DataBase('work.sqlite')
+# chat_titles = []
+# for chat_id in db.get_chats_ids_by_user_id(689666980):
+#     for chat_title in db.get_chat_titles_by_chat_id(chat_id):
+#         chat_titles.append(chat_title)
+#
+# for chat_title in chat_titles:
+#     print(chat_title)

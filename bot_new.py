@@ -3,8 +3,6 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram.utils.markdown import hlink, hbold
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton
 from aiogram.utils.helper import Helper, HelperMode, ListItem
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -23,6 +21,7 @@ class FilterWords(Helper):
     mode = HelperMode.snake_case
     STATEWORD = ListItem()
     UPDATESTATEWORD = ListItem()
+    CHATSTITLES = ListItem()
 
 
 @dp.message_handler(commands=['start'])
@@ -86,13 +85,13 @@ async def ban(message: types.Message):
 
 @dp.message_handler(content_types=["new_chat_members"])
 async def handler_new_member(message):
-    if 'last_name' in message['from']:
-        user_name = f"{message['from']['first_name']} {message['from']['last_name']}"
-        user = hlink(user_name, "tg://user?id=" + str(message['from']['id']))
+    if 'last_name' in message['new_chat_member']:
+        user_name = f"{message['new_chat_member']['first_name']} {message['new_chat_member']['last_name']}"
+        user = hlink(user_name, "tg://user?id=" + str(message['new_chat_member']['id']))
     else:
-        user_name = f"{message['from']['first_name']} "
-        user = hlink(user_name, "tg://user?id=" + str(message['from']['id']))
-        db.add_user(message.chat.id, message['from']['id'])
+        user_name = f"{message['new_chat_member']['first_name']} "
+        user = hlink(user_name, "tg://user?id=" + str(message['new_chat_member']['id']))
+        db.add_user(message.chat.id, message['new_chat_member']['id'])
     await bot.send_message(message.chat.id, "Добро пожаловать в чат, {0}! "
                                             "Перейдите в ЛС с ботом и нажмите старт: "
                                             "@AqoTgBot".format(user), parse_mode="HTML")
@@ -134,7 +133,7 @@ async def get_member(message: types.Message):
                                 arguments),
                             parse_mode="HTML")
                     else:
-                        await message.reply('Нет участников, соотвествующих требованиям.')
+                        await message.reply('Нет участников, соответствующих требованиям.')
 
             else:
                 if 'last_name' in message.reply_to_message['from']:
@@ -157,11 +156,11 @@ async def get_member(message: types.Message):
                         await message.reply("Нельзя выдать поручение администратору.")
 
                     elif not arguments:
-                        await message.reply("Вы не назаначили поручение.")
+                        await message.reply("Вы не назначили поручение.")
 
                     elif len(arguments) < 6:
                         await message.reply(
-                            "Слишком коротко. Выдайте поручение длинее пяти символов.")
+                            "Слишком коротко. Выдайте поручение длиннее пяти символов.")
 
                     elif task_user == admin_id:
                         await message.reply("Нельзя выдать поручение самому себе.")
@@ -176,13 +175,11 @@ async def get_member(message: types.Message):
 
 @dp.message_handler(commands=['tasks'])
 async def get_tasks(message: types.Message):
-    if message.chat.id != message.from_user.id:
-        try:
-            await settings.send_tasks(message)
-        except:
-            await message.reply('Похоже, вы не написали в лс @AqoTgBot /start.')
+    if message.chat.id == message.from_user.id:
+        await settings.send_question(message)
     else:
-        await settings.send_tasks(message)
+        await message.reply('Инструкции были отправлены вам в личные сообщения.')
+        await settings.send_question(message)
 
 
 @dp.message_handler(commands="taskdel")
@@ -395,46 +392,32 @@ async def process_callback_button_filter(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == '1')
 async def process_callback_button_delete_task_one(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    chat_id = db.get_chat_id_by_user_id(user_id)[0]
-    if db.get_user(user_id):
-        if db.get_tasks(user_id, chat_id):
-            task = db.get_tasks(user_id, chat_id)[0]
-            db.task_delete(task[0])
-            text = ""
-            btn_list = []
-            buttons_delete_tasks = InlineKeyboardMarkup(row_width=5)
-            for i in range(
-                    len(db.get_tasks(user_id, chat_id))):
-                text += f"├ {i + 1}. " \
-                        f"{hbold(db.get_tasks(user_id, chat_id)[i][1])}\n"
-            buttons_delete_tasks.row(*btn_list)
-            await bot.answer_callback_query(callback_query.id)
-            await bot.edit_message_text(text=f"│ Ваши поручения:\n{text}\n"
-                                             f"---------------------\n"
-                                             f"Было удалено поручение: {task[1]}\n"
-                                             f"---------------------"
-                                             f"Если вы выполнили поручение, то нажмите на кнопку, "
-                                             f"чтобы удалить.",
-                                        parse_mode='HTML',
-                                        chat_id=user_id,
-                                        message_id=callback_query.message.message_id,
-                                        reply_markup=buttons_delete_tasks)
+    await settings.send_tasks_callback(callback_query, 0)
 
 
 @dp.callback_query_handler(lambda c: c.data == '2')
-async def process_callback_button_delete_task_one(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    chat_id = db.get_chat_id_by_user_id(user_id)[0]
-    if db.get_user(user_id):
-        if db.get_tasks(user_id, chat_id):
-            task = db.get_tasks(user_id, chat_id)[0]
-            db.task_delete(task[0])
+async def process_callback_button_delete_task_two(callback_query: types.CallbackQuery):
+    await settings.send_tasks_callback(callback_query, 1)
+
+
+@dp.callback_query_handler(lambda c: c.data == '3')
+async def process_callback_button_delete_task_three(callback_query: types.CallbackQuery):
+    await settings.send_tasks_callback(callback_query, 2)
+
+
+@dp.callback_query_handler(lambda c: c.data == '4')
+async def process_callback_button_delete_task_three(callback_query: types.CallbackQuery):
+    await settings.send_tasks_callback(callback_query, 3)
+
+
+@dp.callback_query_handler(lambda c: c.data == '5')
+async def process_callback_button_delete_task_three(callback_query: types.CallbackQuery):
+    await settings.send_tasks_callback(callback_query, 4)
 
 
 @dp.message_handler(commands=['keyboard'])
 async def keyboard_buttons(message: types.Message):
-    await message.reply(text='Клавиаутра включена.', reply_markup=settings.keyboard)
+    await message.reply(text='Клавиатура включена.', reply_markup=settings.keyboard)
 
 
 @dp.message_handler(commands=['reg'])
@@ -486,12 +469,17 @@ async def catch_messages(message: types.Message):
                                                          message_id=message.message_id)
         if not member.is_chat_admin():
             if message.text == 'Поручения':
-                await settings.send_tasks(message)
+                await settings.send_question(message)
+                if db.get_chats_ids_by_user_id(message.chat.id):
+                    if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.chat.id)[0]):
+                        for chat_id in db.get_chats_ids_by_user_id(message.from_user.id):
+                            for chat_title in db.get_chat_titles_by_chat_id(chat_id):
+                                if message.text == chat_title:
+                                    await settings.send_tasks(message, chat_title)
+
         if message.text == 'Погода':
             await message.reply('+248 градусов в Сыктывкаре')
     else:
-        if message.text == 'Поручения':
-            await settings.send_tasks(message)
         if db.get_chat_titles_by_admin_id(message.chat.id):
             for chat_title in db.get_chat_titles_by_admin_id(message.chat.id):
                 if message.text == chat_title:
@@ -500,7 +488,22 @@ async def catch_messages(message: types.Message):
                     await bot.send_message(text=f'Выберите действие для чата {chat_title}',
                                            reply_markup=settings.button,
                                            chat_id=message.chat.id)
-
-
+        else:
+            if message.text == 'Поручения':
+                await settings.send_question(message)
+                if db.get_chats_ids_by_user_id(message.chat.id):
+                    if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.chat.id)[0]):
+                        for chat_id in db.get_chats_ids_by_user_id(message.from_user.id):
+                            for chat_title in db.get_chat_titles_by_chat_id(chat_id):
+                                if message.text == chat_title:
+                                    await settings.send_tasks(message, chat_title)
+            else:
+                if db.get_chats_ids_by_user_id(message.chat.id):
+                    if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.chat.id)[0]):
+                        for chat_id in db.get_chats_ids_by_user_id(message.from_user.id):
+                            for chat_title in db.get_chat_titles_by_chat_id(chat_id):
+                                if message.text == chat_title:
+                                    settings.user_chat_dict[message.from_user.id] = (chat_id, chat_title)
+                                    await settings.send_tasks(message, chat_title)
 if __name__ == '__main__':
     executor.start_polling(dp)
