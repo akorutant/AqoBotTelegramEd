@@ -1,5 +1,4 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.markdown import hlink
 from aiogram.utils.markdown import hbold
 from aiogram.dispatcher import Dispatcher
@@ -78,7 +77,8 @@ async def send_tasks_callback(callback_query, number):
                                         chat_id=user_id,
                                         message_id=callback_query.message.message_id,
                                         reply_markup=buttons_delete_tasks)
-            await bot.send_message(text=f'{user_ping} выполнил поручение: {task[1]}. Из чата: {chat_title}',
+            await bot.send_message(text=f'{user_ping} выполнил поручение: {task[1]}. '
+                                        f'Из чата: {chat_title}',
                                    chat_id=admin_id,
                                    parse_mode='HTML')
             if not db.get_tasks(user_id, chat_id):
@@ -91,7 +91,8 @@ async def send_tasks_callback(callback_query, number):
 async def send_question(message):
     if message.chat.id != message.from_user.id:
         try:
-            keyboard_chat_titles_from_users = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            keyboard_chat_titles_from_users = ReplyKeyboardMarkup(resize_keyboard=True,
+                                                                  one_time_keyboard=True)
             if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.from_user.id)[0]):
                 if db.get_chats_ids_by_user_id(message.from_user.id):
                     if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.from_user.id)[0]):
@@ -104,7 +105,8 @@ async def send_question(message):
         except:
             await message.reply('Похоже, вы не написали в лс @AqoTgBot /start.')
     else:
-        keyboard_chat_titles_from_users = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        keyboard_chat_titles_from_users = ReplyKeyboardMarkup(resize_keyboard=True,
+                                                              one_time_keyboard=True)
         if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.chat.id)[0]):
             if db.get_chats_ids_by_user_id(message.chat.id):
                 if db.get_chat_titles_by_chat_id(db.get_chats_ids_by_user_id(message.chat.id)[0]):

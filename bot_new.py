@@ -3,7 +3,7 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram.utils.markdown import hlink, hbold
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup
 from aiogram.utils.helper import Helper, HelperMode, ListItem
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -36,7 +36,7 @@ async def process_start_command(message: types.Message):
         if message.chat.id != message.from_user.id:
             if message.chat.type == 'supergroup':
                 db.add_chat_info(message.chat.id, message.chat.title)
-                db.add_admins(message.chat.id, message.from_user.id, message.chat.id)
+                db.add_admins(message.chat.id, message.from_user.id, message.chat.title)
                 await message.reply(
                     "Привет! Я AqoBot!\nДля корректной работы мне нужны права администратора.\n\n"
                     "Если вы старый пользователь чата, напишите /reg для добавления в базу данных.")
@@ -63,7 +63,7 @@ async def ban(message: types.Message):
         arguments = message.get_args()
         if member.is_chat_admin():
             db.add_chat_info(message.chat.id, message.chat.title)
-            db.add_admins(message.chat.id, message.from_user.id, message.chat.id)
+            db.add_admins(message.chat.id, message.from_user.id, message.chat.title)
             try:
                 if 'last_name' in message['reply_to_message']:
                     user_name = f"{message['reply_to_message']['first_name']} " \
@@ -97,7 +97,8 @@ async def ban(message: types.Message):
 @dp.message_handler(content_types=["new_chat_members"])
 async def handler_new_member(message):
     if 'last_name' in message['new_chat_member']:
-        user_name = f"{message['new_chat_member']['first_name']} {message['new_chat_member']['last_name']}"
+        user_name = f"{message['new_chat_member']['first_name']} " \
+                    f"{message['new_chat_member']['last_name']}"
         user = hlink(user_name, "tg://user?id=" + str(message['new_chat_member']['id']))
     else:
         user_name = f"{message['new_chat_member']['first_name']} "
@@ -193,9 +194,13 @@ async def get_member(message: types.Message):
 @dp.message_handler(commands=['tasks'])
 async def get_tasks(message: types.Message):
     member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+    chat_id = message.chat.id
+    chat_title = message.chat.title
     if message.chat.id == message.from_user.id:
         await send_messages.send_question(message)
     else:
+        settings.user_chat_dict[message.from_user.id] = (
+            chat_id, chat_title)
         await message.reply('Инструкции были отправлены вам в личные сообщения.')
         await send_messages.send_question(message)
     if member.is_chat_admin():
@@ -446,14 +451,8 @@ async def handle_location(message: types.Message):
     sky = res['weather'][0]['description']
     temp = res['main']['temp']
     wind = res['wind']['speed']
-    if message.from_user.id not in settings.user_for_weather:
-        await message.answer(f'В городе: {city}\nТемпература: {temp} °C\n'
-                             f'Скорость ветра: {wind} м/с\nНа небе: {sky.capitalize()}')
-    else:
-        await bot.send_message(text=f'В городе: {city}\nТемпература воздуха: {temp} °C\n'
-                                    f'Скорость ветра: {wind} м/с\nНа небе: {sky.capitalize()}',
-                               chat_id=settings.user_for_weather[message.from_user.id])
-        settings.user_for_weather.clear()
+    await message.answer(f'В городе: {city}\nТемпература: {temp} °C\n'
+                         f'Скорость ветра: {wind} м/с\nНа небе: {sky.capitalize()}')
 
 
 @dp.message_handler(commands=['weather'])
@@ -474,7 +473,6 @@ async def weather(message: types.Message):
         else:
             db.add_chat_info(message.chat.id, message.chat.title)
             db.add_user(message.chat.id, message.from_user.id)
-        settings.user_for_weather[message.from_user.id] = message.chat.id
 
 
 @dp.message_handler()

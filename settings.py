@@ -6,7 +6,6 @@ TOKEN = '1923482161:AAE0htBy-eGqVY_KRhyjKSp7o3YlXcUPZr0'
 admin_chat_dict = {}
 muted_user = {}
 user_chat_dict = {}
-user_for_weather = {}
 
 # Кнопки.
 show_task = KeyboardButton('📒Поручения')
@@ -33,3 +32,4 @@ un_mute_button.add(button_un_mute)
 
 # Кнопки чатов.
 keyboard_chat_titles = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+
