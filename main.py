@@ -19,7 +19,6 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 db = DataBase('UsersDataBase.sqlite')
 
-
 api_weather_key = '6d9f7d62208d497dcfbaae6a17d3d123'
 
 
@@ -33,18 +32,32 @@ class FilterWords(Helper):
 async def process_start_command(message: types.Message):
     member = await bot.get_chat_member(message.chat.id, message.from_user.id)
     if member.is_chat_admin():
+        admins = await bot.get_chat_administrators(message.chat.id)
+        admins = list(filter(
+            lambda admin: admin.user.is_bot and admin.user.username == 'AqoTgBot', admins))
         if message.chat.id != message.from_user.id:
-            if message.chat.type == 'supergroup':
+            if message.chat.type != 'supergroup':
                 db.add_chat_info(message.chat.id, message.chat.title)
                 db.add_admins(message.chat.id, message.from_user.id, message.chat.title)
-                await message.reply(
-                    "Привет! Я AqoBot!\nДля корректной работы мне нужны права администратора.\n\n"
-                    "Если вы старый пользователь чата, напишите /reg для добавления в базу данных.")
+                await bot.send_message(text="Привет! Я AqoBot!\nВаш чат не является супергруппой, "
+                                            "я не смогу корректно работать.\n\n"
+                                            "Чтобы сделать этот чат супергруппой, "
+                                            "то измените просмотр истории группы для всех.",
+                                       chat_id=message.chat.id)
+            elif not admins:
+                await bot.send_message(
+                    text="Привет! Я AqoBot!\nДля корректной работы мне нужны права "
+                         "администратора.\n\n "
+                         "Все пользователи, которые были в чате до появления здесь бота, "
+                         "должны написать /reg для добавления в базу данных.",
+                    chat_id=message.chat.id)
+
             else:
-                await message.reply("Привет! Я AqoBot!\nВаш чат не является супергруппой, "
-                                    "я не смогу корректно работать.\n\n"
-                                    "Чтобы сделать этот чат супергруппой, "
-                                    "то измените просмотр истории группы для всех.")
+                await bot.send_message(text='Бот готов к работе.\n\nВсе пользователи, '
+                                            'которые были в чате до появления здесь '
+                                            'бота, должны написать /reg '
+                                            'для добавления в базу данных.',
+                                       chat_id=message.chat.id)
 
     else:
         if message.chat.id == message.from_user.id:
@@ -501,7 +514,7 @@ async def catch_messages(message: types.Message):
                                 await bot.send_message(
                                     text='{0}, получает ограничение прав в чате на один час'
                                          ' за использование запрещённых слов.\n'
-                                         '------------------------------'
+                                         '------------------------------\n'
                                          'Кнопка действительна до следующего мута.'.format(user),
                                     chat_id=message.chat.id,
                                     parse_mode='HTML',
@@ -561,6 +574,7 @@ async def catch_messages(message: types.Message):
                                 settings.user_chat_dict[message.from_user.id] = (
                                     chat_id, chat_title)
                                 await send_messages.send_tasks(message, chat_title)
+
 
 if __name__ == '__main__':
     executor.start_polling(dp)
