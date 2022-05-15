@@ -64,16 +64,16 @@ async def ban(message: types.Message):
         if member.is_chat_admin():
             db.add_chat_info(message.chat.id, message.chat.title)
             db.add_admins(message.chat.id, message.from_user.id, message.chat.title)
-            try:
+            if message.reply_to_message:
                 if 'last_name' in message['reply_to_message']:
-                    user_name = f"{message['reply_to_message']['first_name']} " \
-                                f"{message['reply_to_message']['last_name']}"
+                    user_name = f"{message['reply_to_message']['from']['first_name']} " \
+                                f"{message['reply_to_message']['from']['last_name']}"
                     user = hlink(user_name,
-                                 "tg://user?id=" + str(message['reply_to_message']['id']))
+                                 "tg://user?id=" + str(message['reply_to_message']['from']['id']))
                 else:
-                    user_name = f"{message['reply_to_message']['first_name']} "
+                    user_name = f"{message['reply_to_message']['from']['first_name']}"
                     user = hlink(user_name,
-                                 "tg://user?id=" + str(message['reply_to_message']['id']))
+                                 "tg://user?id=" + str(message['reply_to_message']['from']['id']))
 
                 if not arguments:
                     await message.bot.kick_chat_member(chat_id=message.chat.id,
@@ -87,7 +87,7 @@ async def ban(message: types.Message):
                     await message.reply_to_message.reply(
                         "Этот участник получает бан.\nПричина: " + arguments + "\n"
                         + "Бан выдан администратором: {0}".format(user), parse_mode="HTML")
-            except:
+            else:
                 await message.reply("Нужно ответить на сообщение для бана.")
 
         else:
@@ -101,7 +101,7 @@ async def handler_new_member(message):
                     f"{message['new_chat_member']['last_name']}"
         user = hlink(user_name, "tg://user?id=" + str(message['new_chat_member']['id']))
     else:
-        user_name = f"{message['new_chat_member']['first_name']} "
+        user_name = f"{message['new_chat_member']['first_name']}"
         user = hlink(user_name, "tg://user?id=" + str(message['new_chat_member']['id']))
         db.add_user(message.chat.id, message['new_chat_member']['id'])
         db.add_chat_info(message.chat.id, message.chat.title)
@@ -141,7 +141,7 @@ async def get_member(message: types.Message):
                             user_ping = hlink(user_name, "tg://user?id=" + str(
                                 message['reply_to_message']['id']))
                         else:
-                            user_name = f"{user['first_name']} "
+                            user_name = f"{user['first_name']}"
                             user_ping = hlink(user_name, "tg://user?id=" + str(random_user))
                         await message.reply(
                             "Поручение выдано для {0}".format(user_ping) + ": " + "\n" + hbold(
@@ -157,7 +157,7 @@ async def get_member(message: types.Message):
                     user = hlink(user_name,
                                  "tg://user?id=" + str(message.reply_to_message['from']['id']))
                 else:
-                    user_name = f"{message.reply_to_message['from']['first_name']} "
+                    user_name = f"{message.reply_to_message['from']['first_name']}"
                     user = hlink(user_name,
                                  "tg://user?id=" + str(message.reply_to_message['from']['id']))
                 task_user = message.reply_to_message['from']['id']
@@ -545,11 +545,11 @@ async def catch_messages(message: types.Message):
                             if db.get_chat_titles_by_chat_id(
                                     db.get_chats_ids_by_user_id(message.chat.id)[0]):
                                 for chat_id in db.get_chats_ids_by_user_id(message.from_user.id):
-                                    for chat_title in db.get_chat_titles_by_chat_id(chat_id):
-                                        if message.text == chat_title:
+                                    for chat_title_for in db.get_chat_titles_by_chat_id(chat_id):
+                                        if message.text == chat_title_for:
                                             settings.user_chat_dict[message.from_user.id] = (
-                                                chat_id, chat_title)
-                                            await send_messages.send_tasks(message, chat_title)
+                                                chat_id, chat_title_for)
+                                            await send_messages.send_tasks(message, chat_title_for)
 
         elif db.get_user(message.from_user.id):
             if db.get_chats_ids_by_user_id(message.chat.id):
