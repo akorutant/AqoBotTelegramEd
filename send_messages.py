@@ -64,7 +64,7 @@ async def send_tasks_callback(callback_query, number):
                 user_ping = hlink(user_name, "tg://user?id=" + str(
                     callback_query.message['reply_to_message']['id']))
             else:
-                user_name = f"{user['first_name']} "
+                user_name = f"{user['first_name']}"
                 user_ping = hlink(user_name, "tg://user?id=" + str(user_id))
             await bot.answer_callback_query(callback_query.id)
             await bot.edit_message_text(text=f"│ Ваши поручения в чате {chat_title}:\n{text}\n"
